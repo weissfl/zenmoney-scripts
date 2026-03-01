@@ -330,5 +330,101 @@
         API reference: https://github.com/zenmoney/ZenPlugins/wiki/ZenMoney-API
       </Notes>
     </S-003>
+
+    <S-004 STATUS="draft">
+      <Name>zenmoney-transfer</Name>
+      <Purpose>
+        Create an in-app transfer between two non-archived accounts by posting a single Transaction with both outcome and income equal to the transfer amount.
+        Not in scope: currency conversion; multi-leg transfers; fees; editing/deleting transactions.
+      </Purpose>
+
+      <Interface>
+        <Entrypoint>~/.local/bin/zenmoney-transfer</Entrypoint>
+        <Schedule>manual</Schedule>
+        <Args>
+          Required:
+            --from &lt;uuid|title-substring&gt;
+            --to &lt;uuid|title-substring&gt;
+            --amount &lt;number&gt;   (accepts forms like 1000, 1000.50, 1 000,50)
+
+          Optional:
+            --comment &lt;text&gt; (default: "Transfer")
+            --date &lt;YYYY-MM-DD&gt; (default: today)
+            --timezone &lt;IANA tz&gt; (default: system)
+            --timeout-sec &lt;n&gt; (default: 20)
+
+          Matching rules:
+            - Accounts can be provided as UUID; otherwise treated as a case-sensitive substring match.
+            - Accounts with archive=true are ignored (not selectable).
+        </Args>
+        <EnvVars>
+          ZENMONEY_API_KEY (Bearer token)
+        </EnvVars>
+        <Config>none</Config>
+        <Outputs>
+          On success: prints a short confirmation and ends with `OK — transfer added`.
+          If account instruments differ: prints `WARN — instruments differ (mixed currency transfer 1:1)` and still proceeds.
+        </Outputs>
+        <DryRun>not required (user requested no dry-run)</DryRun>
+      </Interface>
+
+      <Language>
+        <Proposed>Python 3 (stdlib-only)</Proposed>
+        <Alternative>Node.js 18+ (built-in fetch)</Alternative>
+        <Rationale>
+          Python is simplest for a small CLI with date parsing + HTTP + UUID without extra deps.
+        </Rationale>
+        <Decision STATUS="approved">Python 3</Decision>
+      </Language>
+
+      <Dependencies>
+        <Runtime>Python 3.x</Runtime>
+        <ExternalTools></ExternalTools>
+        <ThirdPartyLibraries></ThirdPartyLibraries>
+      </Dependencies>
+
+      <Pipeline>
+        <step-1>Validate args and env (ZENMONEY_API_KEY present; amount numeric after normalization; date format ok).</step-1>
+        <step-2>Fetch snapshot via Diff first sync (POST /v8/diff/ with serverTimestamp=0).</step-2>
+        <step-3>Resolve from/to accounts; reject archive=true; handle not found/ambiguous.</step-3>
+        <step-4>Compare instruments; if different, print WARN and proceed (1:1 transfer).</step-4>
+        <step-5>Determine user id (diff response user[0].id).</step-5>
+        <step-6>Build Transaction with income=amount, outcome=amount; outcomeAccount=from; incomeAccount=to; instruments set from source account instrument.</step-6>
+        <step-7>Send via Diff POST including transaction:[...].</step-7>
+        <step-8>Check response contains transaction; print confirmation; exit 0.</step-8>
+      </Pipeline>
+
+      <State>
+        <Required>none</Required>
+        <Store>none</Store>
+        <Keys>n/a</Keys>
+        <Dedup>none (each run creates a new UUID)</Dedup>
+      </State>
+
+      <Safety>
+        <DangerousActions>Writes a new transfer transaction into ZenMoney.</DangerousActions>
+        <Guards>
+          - Never log token.
+          - If account resolution is ambiguous, exit 2 and print candidate titles.
+          - If HTTP 5xx/timeout: exit 10.
+          - If 401/403: exit 20.
+        </Guards>
+      </Safety>
+
+      <Verify>
+        <Scenario-1>
+          <Command>unset ZENMONEY_API_KEY; ~/.local/bin/zenmoney-transfer --from X --to Y --amount 1</Command>
+          <Expected>ERROR — missing ZENMONEY_API_KEY; exit code 2</Expected>
+        </Scenario-1>
+        <Scenario-2>
+          <Command>ZENMONEY_API_KEY=*** ~/.local/bin/zenmoney-transfer --from NON_EXISTENT --to Vietcombank --amount 1</Command>
+          <Expected>ERROR — from account not found; exit code 2</Expected>
+        </Scenario-2>
+      </Verify>
+
+      <Notes>
+        API reference: https://github.com/zenmoney/ZenPlugins/wiki/ZenMoney-API
+      </Notes>
+    </S-004>
   </Scripts>
 </ScriptSpecs>
