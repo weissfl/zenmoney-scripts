@@ -237,5 +237,98 @@
         API reference: https://github.com/zenmoney/ZenPlugins/wiki/ZenMoney-API
       </Notes>
     </S-002>
+
+    <S-003 STATUS="draft">
+      <Name>zenmoney-dict</Name>
+      <Purpose>
+        Read-only dictionary/reference printer for ZenMoney entities.
+        It fetches a first-sync Diff snapshot (serverTimestamp=0) and prints selected entity lists (accounts, categories/tags, instruments, user base currency).
+      </Purpose>
+
+      <Interface>
+        <Entrypoint>~/.local/bin/zenmoney-dict</Entrypoint>
+        <Schedule>manual</Schedule>
+        <Args>
+          Optional filters:
+            --accounts &lt;substring&gt;   (filter by account.title; default: all)
+            --tags &lt;substring&gt;       (filter by tag.title; default: all)
+            --instruments &lt;substring&gt; (filter by instrument.shortTitle/title; default: all)
+
+          Optional outputs:
+            --no-accounts
+            --no-tags
+            --no-instruments
+            --no-user
+
+          --timeout-sec &lt;n&gt; (default: 20)
+        </Args>
+        <EnvVars>
+          ZENMONEY_API_KEY (Bearer token)
+        </EnvVars>
+        <Config>none</Config>
+        <Outputs>
+          stdout text:
+            Accounts: title | id | archive | inBalance | instrument
+            Tags:     title | id | parent
+            Instruments: shortTitle | id | rate
+            User: id | currency (base instrument id)
+
+          Final line: OK — dict printed  OR  ERROR — ...
+        </Outputs>
+        <DryRun>not applicable (read-only)</DryRun>
+      </Interface>
+
+      <Language>
+        <Proposed>Python 3 (stdlib-only)</Proposed>
+        <Alternative>Node.js 18+ (built-in fetch)</Alternative>
+        <Rationale>
+          Python is simplest for a small CLI with filtering and stable text output.
+        </Rationale>
+        <Decision STATUS="approved">Python 3</Decision>
+      </Language>
+
+      <Dependencies>
+        <Runtime>Python 3.x</Runtime>
+        <ExternalTools></ExternalTools>
+        <ThirdPartyLibraries></ThirdPartyLibraries>
+      </Dependencies>
+
+      <Pipeline>
+        <step-1>Validate env and args.</step-1>
+        <step-2>Fetch Diff snapshot (POST /v8/diff/ with serverTimestamp=0).</step-2>
+        <step-3>Extract account/tag/instrument/user lists.</step-3>
+        <step-4>Apply substring filters.</step-4>
+        <step-5>Print lists; exit 0.</step-5>
+      </Pipeline>
+
+      <State>
+        <Required>none</Required>
+        <Store>none</Store>
+        <Keys>n/a</Keys>
+        <Dedup>n/a</Dedup>
+      </State>
+
+      <Safety>
+        <DangerousActions>none (read-only)</DangerousActions>
+        <Guards>
+          Never log token. HTTP 5xx/timeouts -> exit 10. 401/403 -> exit 20.
+        </Guards>
+      </Safety>
+
+      <Verify>
+        <Scenario-1>
+          <Command>unset ZENMONEY_API_KEY; ~/.local/bin/zenmoney-dict</Command>
+          <Expected>ERROR — missing ZENMONEY_API_KEY; exit code 2</Expected>
+        </Scenario-1>
+        <Scenario-2>
+          <Command>ZENMONEY_API_KEY=*** ~/.local/bin/zenmoney-dict --accounts Viet</Command>
+          <Expected>OK — dict printed; output includes matching account titles; exit code 0</Expected>
+        </Scenario-2>
+      </Verify>
+
+      <Notes>
+        API reference: https://github.com/zenmoney/ZenPlugins/wiki/ZenMoney-API
+      </Notes>
+    </S-003>
   </Scripts>
 </ScriptSpecs>
