@@ -1,0 +1,241 @@
+<ScriptSpecs VERSION="1.1">
+  <Project>
+    <Name>zenmoney-scripts</Name>
+    <Summary>
+      Small read-only helper scripts for ZenMoney API (Scriptcraft: spec-first, stdlib-first, narrative logs).
+    </Summary>
+  </Project>
+
+  <GlobalRules>
+    <Minimalism>
+      <Sufficiency>
+        Build only what is needed for the stated PURPOSE and VERIFY scenarios. Avoid "nice-to-have" expansions.
+      </Sufficiency>
+      <StdlibFirst>
+        Prefer native/stdlib solutions (especially in Python). Add third-party dependencies only with explicit justification.
+      </StdlibFirst>
+      <NoAutoChoice>
+        Do not auto-select language or tools. Propose 1-2 options with arguments; require user approval.
+      </NoAutoChoice>
+    </Minimalism>
+
+    <Observability>
+      <LogFormat>
+        Logs must be narrative, line-oriented, stdout only.
+        Use: Step N — ..., Info — key=value (optional), OK — ..., WARN — ..., ERROR — ..., HINT — ...
+        Do NOT output logs as JSON.
+        Final line must be either: OK — ...  OR  ERROR — ...
+      </LogFormat>
+      <VerifyPolicy>
+        Each script must define at least 2 VERIFY scenarios (happy path + failure/edge).
+        Verification requires a real smoke run of those scenarios.
+      </VerifyPolicy>
+    </Observability>
+
+    <Integration>
+      <ExitCodes>
+        0=success; 2=invalid arguments/input; 10=temporary external/API/network error (retryable); 20=permanent error.
+      </ExitCodes>
+      <SecretsPolicy>
+        Secrets must be provided via environment variables. Never print secrets in logs.
+      </SecretsPolicy>
+      <Entrypoints>
+        Executables live in ~/.local/bin (thin wrapper or direct script). Project/source code does NOT live there.
+      </Entrypoints>
+    </Integration>
+  </GlobalRules>
+
+  <Scripts>
+    <S-001 STATUS="active">
+      <Name>zenmoney-balance</Name>
+      <Purpose>
+        Fetch current account balances from ZenMoney API (read-only) and print summary to stdout.
+        Not in scope: creating/updating/deleting any entities; OAuth2 interactive flows; long-running sync.
+      </Purpose>
+
+      <Interface>
+        <Entrypoint>~/.local/bin/zenmoney-balance</Entrypoint>
+        <Schedule>manual (optional cron later)</Schedule>
+        <Args>
+          --account &lt;id&gt; (optional; filter to one account)
+          archived accounts are INCLUDED by default
+          --exclude-archived (exclude archived accounts)
+          --in-balance-only (default: true)
+          --all-accounts (set inBalance-only to false)
+          --timeout-sec &lt;n&gt; (default: 20)
+          --full (expanded output: account list + per-currency totals + total_base)
+        </Args>
+        <EnvVars>
+          ZENMONEY_API_KEY (provided by user; used as Bearer token value)
+        </EnvVars>
+        <Config>none</Config>
+        <Outputs>
+          default (no flags):
+            &lt;amount&gt; &lt;BASE_CUR&gt;
+
+          --full:
+            one line per account:
+              &lt;title&gt; [&lt;CUR&gt;] (&lt;uuid&gt;)  &lt;balance&gt; (archived)   # suffix only when archive=true
+            plus totals per currency:
+              Info — total[CUR]=...
+            plus total converted into user's base currency (user.currency):
+              Info — total_base[BASE_CUR]=...
+        </Outputs>
+        <DryRun>not applicable (read-only)</DryRun>
+      </Interface>
+
+      <Language>
+        <Proposed>Python 3 (stdlib-only HTTP client)</Proposed>
+        <Alternative>Node.js 18+ (built-in fetch)</Alternative>
+        <Rationale>
+          Both can be dependency-free. Python tends to be simplest for cron + small CLIs; Node is fine if you prefer JS ecosystem.
+        </Rationale>
+        <Decision STATUS="approved">Python 3</Decision>
+      </Language>
+
+      <Dependencies>
+        <Runtime>Python 3.x</Runtime>
+        <ExternalTools></ExternalTools>
+        <ThirdPartyLibraries></ThirdPartyLibraries>
+      </Dependencies>
+
+      <Pipeline>
+        <step-1>Validate args and required env var (ZENMONEY_API_KEY present; timeout numeric).</step-1>
+        <step-2>Call ZenMoney API Diff endpoint (POST https://api.zenmoney.ru/v8/diff/) with Authorization: Bearer &lt;ZENMONEY_API_KEY&gt;.</step-2>
+        <step-3>Extract accounts[*].balance and currency via account.instrument -> instrument.shortTitle, and instrument rates.</step-3>
+        <step-4>Determine base currency via user.currency -> Instrument.id.</step-4>
+        <step-5>Apply filters (--account, --exclude-archived, --in-balance-only).</step-5>
+        <step-6>Print per-account balances + totals per currency + total_base converted into base currency; exit 0.</step-6>
+      </Pipeline>
+
+      <State>
+        <Required>none</Required>
+        <Store>none</Store>
+        <Keys>n/a</Keys>
+        <Dedup>n/a</Dedup>
+      </State>
+
+      <Safety>
+        <DangerousActions>none (read-only)</DangerousActions>
+        <Guards>
+          Never log token. Treat HTTP 5xx/timeouts as exit 10 (retryable). Treat 401/403 as exit 20.
+        </Guards>
+      </Safety>
+
+      <Verify>
+        <Scenario-1>
+          <Command>unset ZENMONEY_API_KEY; ~/.local/bin/zenmoney-balance</Command>
+          <Expected>ERROR — missing ZENMONEY_API_KEY; exit code 2</Expected>
+        </Scenario-1>
+        <Scenario-2>
+          <Command>ZENMONEY_API_KEY=*** ~/.local/bin/zenmoney-balance</Command>
+          <Expected>OK — prints balances with [CUR] + Info — total[CUR]=... per currency + Info — total_base[BASE_CUR]=...; exit code 0</Expected>
+        </Scenario-2>
+      </Verify>
+
+      <Notes>
+        API doc reference: https://github.com/zenmoney/ZenPlugins/wiki/ZenMoney-API
+      </Notes>
+    </S-001>
+
+    <S-002 STATUS="draft">
+      <Name>zenmoney-add-transaction</Name>
+      <Purpose>
+        Add a single income/expense transaction into ZenMoney via the Diff endpoint (POST /v8/diff/).
+        Not in scope: editing/deleting existing transactions; transfers with different income/outcome accounts; merchant/suggest.
+      </Purpose>
+
+      <Interface>
+        <Entrypoint>~/.local/bin/zenmoney-add</Entrypoint>
+        <Schedule>manual</Schedule>
+        <Args>
+          Required:
+            --amount &lt;number&gt;
+            --type income|expense
+            --account &lt;account-title-substring-or-uuid&gt;
+            --category &lt;tag-title-substring-or-uuid&gt;
+
+          Optional:
+            --comment &lt;text&gt;
+            --date &lt;YYYY-MM-DD&gt; (default: today)
+            --timezone &lt;IANA tz&gt; (default: system)
+            --timeout-sec &lt;n&gt; (default: 20)
+
+          Matching rules:
+            - Account/tag can be provided as UUID; otherwise treated as a case-sensitive substring match.
+            - Accounts with archive=true are ignored (not selectable).
+        </Args>
+        <EnvVars>
+          ZENMONEY_API_KEY (Bearer token)
+        </EnvVars>
+        <Config>none</Config>
+        <Outputs>
+          On success:
+            prints a short confirmation line with type, amount, base fields (account/category/date) and the created transaction id.
+          On failure:
+            prints ERROR/WARN/HINT lines explaining what was not found / ambiguous.
+        </Outputs>
+        <DryRun>not required (user requested no dry-run)</DryRun>
+      </Interface>
+
+      <Language>
+        <Proposed>Python 3 (stdlib-only)</Proposed>
+        <Alternative>Node.js 18+ (built-in fetch)</Alternative>
+        <Rationale>
+          Python is simplest for a small CLI with date parsing + HTTP + UUID without extra deps.
+        </Rationale>
+        <Decision STATUS="approved">Python 3</Decision>
+      </Language>
+
+      <Dependencies>
+        <Runtime>Python 3.x</Runtime>
+        <ExternalTools></ExternalTools>
+        <ThirdPartyLibraries></ThirdPartyLibraries>
+      </Dependencies>
+
+      <Pipeline>
+        <step-1>Validate args and env (ZENMONEY_API_KEY present; amount numeric; type allowed; date format ok).</step-1>
+        <step-2>Fetch current data via Diff first sync (POST /v8/diff/ with serverTimestamp=0).</step-2>
+        <step-3>Resolve account: match by UUID or title substring; reject archive=true accounts; handle 0 matches and &gt;1 matches (ambiguous).</step-3>
+        <step-4>Resolve category/tag: match by UUID or title substring; handle 0 matches and &gt;1 matches.</step-4>
+        <step-5>Derive instrument from account.instrument (use for incomeInstrument/outcomeInstrument).</step-5>
+        <step-6>Determine user id to set transaction.user (source: diff response user[0].id).</step-6>
+        <step-7>Build Transaction object (UUID id; created/changed timestamps; date; income/outcome based on type; tag list; comment).</step-7>
+        <step-8>Send transaction via Diff POST including transaction:[...].</step-8>
+        <step-9>Check response contains transaction; print confirmation; exit 0.</step-9>
+      </Pipeline>
+
+      <State>
+        <Required>none</Required>
+        <Store>none</Store>
+        <Keys>n/a</Keys>
+        <Dedup>none (each run creates a new UUID)</Dedup>
+      </State>
+
+      <Safety>
+        <DangerousActions>Writes a new transaction into ZenMoney (irreversible via this script).</DangerousActions>
+        <Guards>
+          - Never log token.
+          - If account/category resolution is ambiguous, exit 2 and print candidate titles.
+          - If HTTP 5xx/timeout: exit 10.
+          - If 401/403: exit 20.
+        </Guards>
+      </Safety>
+
+      <Verify>
+        <Scenario-1>
+          <Command>unset ZENMONEY_API_KEY; ~/.local/bin/zenmoney-add --amount 10 --type expense --account "X" --category "Y"</Command>
+          <Expected>ERROR — missing ZENMONEY_API_KEY; exit code 2</Expected>
+        </Scenario-1>
+        <Scenario-2>
+          <Command>ZENMONEY_API_KEY=*** ~/.local/bin/zenmoney-add --amount 1 --type expense --account "NON_EXISTENT" --category "Food"</Command>
+          <Expected>ERROR — account not found; exit code 2</Expected>
+        </Scenario-2>
+      </Verify>
+
+      <Notes>
+        API reference: https://github.com/zenmoney/ZenPlugins/wiki/ZenMoney-API
+      </Notes>
+    </S-002>
+  </Scripts>
+</ScriptSpecs>
