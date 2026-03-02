@@ -1,77 +1,79 @@
 # zenmoney-scripts
 
-Small CLI scripts for ZenMoney API (Diff endpoint).
+Небольшие CLI-скрипты для ZenMoney API (Diff endpoint).
 
-## Setup
+**Языки:** Русский | [English](README.en.md)
 
-1) Export token (Bearer):
+## Настройка
+
+1) Экспортируй токен (Bearer):
 
 ```bash
 export ZENMONEY_API_KEY='...'
 ```
 
-2) Commands are installed as thin wrappers in `~/.local/bin` and call the project scripts.
+2) Команды установлены как тонкие обёртки в `~/.local/bin` и вызывают Python-скрипты из проекта.
 
-## Commands
+## Команды
 
-### Balance
+### Баланс
 
-Default output: one line only:
+Вывод по умолчанию — ровно одна строка:
 
 ```bash
 zenmoney-balance
 # -> 9817.15 USD
 ```
 
-Expanded output:
+Расширенный вывод:
 
 ```bash
 zenmoney-balance --full
 ```
 
-Notes:
-- Base currency comes from `user.currency`.
-- Conversion uses `instrument.rate` (defined by API as value in RUB), but the final total is printed in the base currency.
+Примечания:
+- Базовая валюта берётся из `user.currency`.
+- Конвертация использует `instrument.rate` (в API rate определён как «стоимость единицы валюты в RUB»), но итоговая сумма печатается в базовой валюте.
 
-### Dictionary (reference lists)
+### Справочник (accounts/tags/instruments)
 
-Print accounts/tags/instruments (use filters to keep output small):
+Печать списков (используй фильтры, чтобы не утонуть в выводе):
 
 ```bash
 zenmoney-dict --accounts Viet
 zenmoney-dict --tags "Проду"
 ```
 
-### Add transaction (income/expense)
+### Добавить транзакцию (доход/расход)
 
 ```bash
-# expense
+# расход
 zenmoney-add --amount 350 --type expense --account "Vietcombank" --category "Продукты" --comment "Food"
 
-# income
+# доход
 zenmoney-add --amount 50000 --type income --account "Vietcombank" --category "Зарплата" --comment "Salary"
 ```
 
-Notes:
-- Archived accounts are ignored (not selectable) for writing scripts.
-- If account/category match is ambiguous, the script errors with a candidate list.
+Примечания:
+- Для скриптов записи (`zenmoney-add`, `zenmoney-transfer`) архивные счета игнорируются (нельзя выбрать).
+- Если совпадение по счёту/категории неоднозначно, скрипт завершится с ошибкой и покажет кандидатов.
 
-### Transfer between accounts
+### Перевод между счетами
 
 ```bash
 zenmoney-transfer --from "Axis Bank" --to "IDFC" --amount 100 --comment "Transfer"
 ```
 
-Notes:
-- Archived accounts are ignored.
-- If instruments (currencies) differ, the script prints WARN and still performs a 1:1 transfer.
+Примечания:
+- Архивные счета игнорируются.
+- Если instruments (валюты) различаются, скрипт печатает WARN и всё равно делает перевод 1:1.
 
-## Project layout
+## Структура проекта
 
-- Spec (Scriptcraft): `docs/script-specs.xml`
-- Scripts: `scripts/*.py`
-- Wrappers: `~/.local/bin/zenmoney-*`
+- Спека (Scriptcraft): `docs/script-specs.xml`
+- Скрипты: `scripts/*.py`
+- Обёртки-команды: `~/.local/bin/zenmoney-*`
 
 ## API
 
-- Docs: https://github.com/zenmoney/ZenPlugins/wiki/ZenMoney-API
+- Доки: https://github.com/zenmoney/ZenPlugins/wiki/ZenMoney-API
