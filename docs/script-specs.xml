@@ -64,6 +64,7 @@
           --all-accounts (set inBalance-only to false)
           --timeout-sec &lt;n&gt; (default: 20)
           --full (expanded output: account list + per-currency totals + total_base)
+          --json (stdout JSON-only; logs go to stderr)
         </Args>
         <EnvVars>
           ZENMONEY_API_KEY (provided by user; used as Bearer token value)
@@ -71,7 +72,10 @@
         <Config>none</Config>
         <Outputs>
           default (no flags):
-            &lt;amount&gt; &lt;BASE_CUR&gt;
+            narrative logs ending with:
+              OK — balance fetched
+            and includes:
+              Info — total_base[BASE_CUR]=...
 
           --full:
             one line per account:
@@ -80,6 +84,11 @@
               Info — total[CUR]=...
             plus total converted into user's base currency (user.currency):
               Info — total_base[BASE_CUR]=...
+            final line:
+              OK — balance fetched
+
+          --json:
+            stdout JSON-only (no narrative logs on stdout)
         </Outputs>
         <DryRun>not applicable (read-only)</DryRun>
       </Interface>
@@ -129,8 +138,12 @@
         </Scenario-1>
         <Scenario-2>
           <Command>ZENMONEY_API_KEY=*** ~/.local/bin/zenmoney-balance</Command>
-          <Expected>OK — prints balances with [CUR] + Info — total[CUR]=... per currency + Info — total_base[BASE_CUR]=...; exit code 0</Expected>
+          <Expected>OK — balance fetched; includes Info — total_base[BASE_CUR]=...; exit code 0</Expected>
         </Scenario-2>
+        <Scenario-3>
+          <Command>ZENMONEY_API_KEY=*** ~/.local/bin/zenmoney-balance --json</Command>
+          <Expected>stdout is JSON-only with ok=true and data.total_base + data.base_cur; exit code 0</Expected>
+        </Scenario-3>
       </Verify>
 
       <Notes>

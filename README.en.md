@@ -18,17 +18,25 @@ export ZENMONEY_API_KEY='...'
 
 ### Balance
 
-Default output: one line only:
+Default output: narrative logs ending with `OK — ...`, including base-total:
 
 ```bash
 zenmoney-balance
-# -> 9817.15 USD
+# Step 1 — ...
+# Info — total_base[USD]=...
+# OK — balance fetched
 ```
 
 Expanded output:
 
 ```bash
 zenmoney-balance --full
+```
+
+JSON mode (stdout JSON-only; logs to stderr):
+
+```bash
+zenmoney-balance --json
 ```
 
 Notes:
