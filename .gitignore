@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+
+# Scriptcraft/OpenCode prompt artifacts
+opencode_prompt.txt
+opencode_verify_prompt.txt
