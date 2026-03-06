@@ -4,3 +4,4 @@ __pycache__/
 # Scriptcraft/OpenCode prompt artifacts
 opencode_prompt.txt
 opencode_verify_prompt.txt
+tmp/

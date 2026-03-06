@@ -436,5 +436,147 @@
         API reference: https://github.com/zenmoney/ZenPlugins/wiki/ZenMoney-API
       </Notes>
     </S-004>
+    <S-005 STATUS="draft">
+      <Name>zenmoney-adjust</Name>
+      <Purpose>
+        Create exactly one corrective balance adjustment transaction for a chosen account in ZenMoney via the Diff API.
+        This is used to manually align the account balance when a real operation was missed.
+        Not in scope: editing/deleting existing transactions; multi-account transfers; automatic reconciliation; currency conversion.
+      </Purpose>
+
+      <Interface>
+        <Entrypoint>python3 scripts/zenmoney_adjust.py</Entrypoint>
+        <Schedule>manual</Schedule>
+
+        <Help>
+          <UnknownArgs>
+            Unknown args MUST NOT print full help; it must print only:
+              ERROR — unknown arg: ...
+              HINT — Run with --help
+            and exit 2.
+          </UnknownArgs>
+          <Usage>
+            ZENMONEY_API_KEY=... python3 scripts/zenmoney_adjust.py --account "Vietcombank" --amount -123.45
+            ZENMONEY_API_KEY=... python3 scripts/zenmoney_adjust.py --account "Vietcombank" --amount +50 --tag "Корректировка" --comment "Fix"
+            python3 scripts/zenmoney_adjust.py --help
+          </Usage>
+          <AgentHelp>
+            BEGIN_AGENT_HELP
+            Purpose: add exactly one balance adjustment transaction to a selected (non-archived) account.
+            - Requires env ZENMONEY_API_KEY (Bearer token).
+            - Fetches snapshot via POST https://api.zenmoney.ru/v8/diff/ (serverTimestamp=0).
+            - Resolves account: UUID exact OR title substring (case-sensitive); rejects archive=true; errors if 0 or >1 matches.
+            - Resolves tag: UUID exact OR EXACT title match; errors if 0 or >1 matches.
+            - Amount sign sets direction: + => income; - => outcome; no sign => outcome.
+            - Creates one Transaction with incomeAccount==outcomeAccount==account.id and instruments from account.instrument.
+            END_AGENT_HELP
+          </AgentHelp>
+        </Help>
+
+        <Args>
+          Required:
+            --account &lt;uuid|title-substring&gt;
+            --amount &lt;number&gt;   (examples: 100, +100, -100; no sign =&gt; treated as outcome)
+
+          Optional:
+            --tag &lt;uuid|exact-title&gt; (default: "Корректировка"; if not UUID: exact match by title)
+            --comment &lt;text&gt; (default: "Корректировка баланса")
+            --date &lt;YYYY-MM-DD&gt; (default: today)
+            --timezone &lt;IANA tz&gt; (default: system)
+            --timeout-sec &lt;n&gt; (default: 20)
+            --json (stdout JSON-only; logs go to stderr)
+
+          Matching rules:
+            - Account selector can be UUID; otherwise case-sensitive substring match against account.title.
+            - Accounts with archive=true are ignored (not selectable).
+            - Tag selector can be UUID; otherwise it must match tag.title EXACTLY.
+            - If account/tag resolution is ambiguous or not found, exit 2 and print candidates.
+        </Args>
+
+        <EnvVars>
+          ZENMONEY_API_KEY (Bearer token)
+        </EnvVars>
+        <Config>none</Config>
+
+        <Outputs>
+          On success:
+            prints a short confirmation line including: account, amount, direction (income/outcome), tag, date, and created transaction id.
+            final line: OK — adjustment added
+          On failure:
+            prints ERROR/WARN/HINT lines and ends with: ERROR — ...
+
+          JSON mode:
+            stdout JSON-only with:
+              {"ok": true, "code": 0, "data": {"transaction_id": "...", "account_id": "...", "amount": 123.45, "direction": "income|outcome", "tag_id": "..."}}
+            errors:
+              {"ok": false, "code": 2|10|20, "error": "...", "hint": "..."}
+            and logs go to stderr.
+        </Outputs>
+
+        <DryRun>not supported (this script writes when executed with valid credentials)</DryRun>
+      </Interface>
+
+      <Language>
+        <Proposed>Python 3 (stdlib-only HTTP client)</Proposed>
+        <Alternative>Node.js 18+ (built-in fetch)</Alternative>
+        <Rationale>
+          Keep consistent with the existing zenmoney-scripts bundle; Python stdlib is enough for HTTP + UUID + date handling.
+        </Rationale>
+        <Decision STATUS="approved">Python 3</Decision>
+      </Language>
+
+      <Dependencies>
+        <Runtime>Python 3.x</Runtime>
+        <ExternalTools></ExternalTools>
+        <ThirdPartyLibraries></ThirdPartyLibraries>
+      </Dependencies>
+
+      <Pipeline>
+        <step-1>Validate args/env (ZENMONEY_API_KEY present; amount parseable; date ok).</step-1>
+        <step-2>Fetch snapshot via Diff first sync (POST /v8/diff/ with serverTimestamp=0).</step-2>
+        <step-3>Resolve account (uuid exact OR title substring); reject archive=true; handle not found/ambiguous.</step-3>
+        <step-4>Resolve tag "Корректировка" (uuid OR exact title match); handle not found/ambiguous.</step-4>
+        <step-5>Determine direction from amount sign: + => income; - => outcome; no sign => outcome.</step-5>
+        <step-6>Build Transaction: incomeAccount and outcomeAccount both set to the same account; instruments from account.instrument; user from user[0].id; tag list includes the resolved tag; comment set.</step-6>
+        <step-7>Send via Diff POST including transaction:[...].</step-7>
+        <step-8>Confirm response includes the created transaction; print confirmation; exit 0.</step-8>
+      </Pipeline>
+
+      <State>
+        <Required>none</Required>
+        <Store>none</Store>
+        <Keys>n/a</Keys>
+        <Dedup>none (each run creates a new UUID)</Dedup>
+      </State>
+
+      <Safety>
+        <DangerousActions>Writes a new transaction into ZenMoney (irreversible via this script).</DangerousActions>
+        <Guards>
+          - Never log token.
+          - If account/tag resolution is ambiguous, exit 2 and print candidate titles/ids.
+          - If HTTP 5xx/timeout: exit 10.
+          - If 401/403: exit 20.
+        </Guards>
+      </Safety>
+
+      <Verify>
+        <Scenario-1>
+          <Command>unset ZENMONEY_API_KEY; python3 scripts/zenmoney_adjust.py --account "X" --amount 1</Command>
+          <Expected>ERROR — missing ZENMONEY_API_KEY; exit code 2</Expected>
+        </Scenario-1>
+        <Scenario-2>
+          <Command>ZENMONEY_API_KEY=*** python3 scripts/zenmoney_adjust.py --account "NON_EXISTENT" --amount 1</Command>
+          <Expected>ERROR — account not found; exit code 2</Expected>
+        </Scenario-2>
+        <Scenario-3>
+          <Command>ZENMONEY_API_KEY=*** python3 scripts/zenmoney_adjust.py --account "Vietcombank" --amount -1  # CONFIRM_SIDE_EFFECTS</Command>
+          <Expected>OK — adjustment added; response includes created transaction id; exit code 0</Expected>
+        </Scenario-3>
+      </Verify>
+
+      <Notes>
+        API reference: https://github.com/zenmoney/ZenPlugins/wiki/ZenMoney-API
+      </Notes>
+    </S-005>
   </Scripts>
 </ScriptSpecs>
