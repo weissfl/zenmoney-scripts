@@ -39,9 +39,6 @@
       <SecretsPolicy>
         Secrets must be provided via environment variables. Never print secrets in logs.
       </SecretsPolicy>
-      <Entrypoints>
-        Executables live in ~/.local/bin (thin wrapper or direct script). Project/source code does NOT live there.
-      </Entrypoints>
     </Integration>
   </GlobalRules>
 
@@ -54,7 +51,7 @@
       </Purpose>
 
       <Interface>
-        <Entrypoint>~/.local/bin/zenmoney-balance</Entrypoint>
+        <Entrypoint>python3 scripts/zenmoney_balance.py</Entrypoint>
         <Schedule>manual (optional cron later)</Schedule>
         <Args>
           --account &lt;id&gt; (optional; filter to one account)
@@ -133,15 +130,15 @@
 
       <Verify>
         <Scenario-1>
-          <Command>unset ZENMONEY_API_KEY; ~/.local/bin/zenmoney-balance</Command>
+          <Command>unset ZENMONEY_API_KEY; python3 scripts/zenmoney_balance.py</Command>
           <Expected>ERROR — missing ZENMONEY_API_KEY; exit code 2</Expected>
         </Scenario-1>
         <Scenario-2>
-          <Command>ZENMONEY_API_KEY=*** ~/.local/bin/zenmoney-balance</Command>
+          <Command>ZENMONEY_API_KEY=*** python3 scripts/zenmoney_balance.py</Command>
           <Expected>OK — balance fetched; includes Info — total_base[BASE_CUR]=...; exit code 0</Expected>
         </Scenario-2>
         <Scenario-3>
-          <Command>ZENMONEY_API_KEY=*** ~/.local/bin/zenmoney-balance --json</Command>
+          <Command>ZENMONEY_API_KEY=*** python3 scripts/zenmoney_balance.py --json</Command>
           <Expected>stdout is JSON-only with ok=true and data.total_base + data.base_cur; exit code 0</Expected>
         </Scenario-3>
       </Verify>
@@ -159,7 +156,7 @@
       </Purpose>
 
       <Interface>
-        <Entrypoint>~/.local/bin/zenmoney-add</Entrypoint>
+        <Entrypoint>python3 scripts/zenmoney_add.py</Entrypoint>
         <Schedule>manual</Schedule>
         <Args>
           Required:
@@ -237,11 +234,11 @@
 
       <Verify>
         <Scenario-1>
-          <Command>unset ZENMONEY_API_KEY; ~/.local/bin/zenmoney-add --amount 10 --type expense --account "X" --category "Y"</Command>
+          <Command>unset ZENMONEY_API_KEY; python3 scripts/zenmoney_add.py --amount 10 --type expense --account "X" --category "Y"</Command>
           <Expected>ERROR — missing ZENMONEY_API_KEY; exit code 2</Expected>
         </Scenario-1>
         <Scenario-2>
-          <Command>ZENMONEY_API_KEY=*** ~/.local/bin/zenmoney-add --amount 1 --type expense --account "NON_EXISTENT" --category "Food"</Command>
+          <Command>ZENMONEY_API_KEY=*** python3 scripts/zenmoney_add.py --amount 1 --type expense --account "NON_EXISTENT" --category "Food"</Command>
           <Expected>ERROR — account not found; exit code 2</Expected>
         </Scenario-2>
       </Verify>
@@ -259,7 +256,7 @@
       </Purpose>
 
       <Interface>
-        <Entrypoint>~/.local/bin/zenmoney-dict</Entrypoint>
+        <Entrypoint>python3 scripts/zenmoney_dict.py</Entrypoint>
         <Schedule>manual</Schedule>
         <Args>
           Optional filters:
@@ -330,11 +327,11 @@
 
       <Verify>
         <Scenario-1>
-          <Command>unset ZENMONEY_API_KEY; ~/.local/bin/zenmoney-dict</Command>
+          <Command>unset ZENMONEY_API_KEY; python3 scripts/zenmoney_dict.py</Command>
           <Expected>ERROR — missing ZENMONEY_API_KEY; exit code 2</Expected>
         </Scenario-1>
         <Scenario-2>
-          <Command>ZENMONEY_API_KEY=*** ~/.local/bin/zenmoney-dict --accounts Viet</Command>
+          <Command>ZENMONEY_API_KEY=*** python3 scripts/zenmoney_dict.py --accounts Viet</Command>
           <Expected>OK — dict printed; output includes matching account titles; exit code 0</Expected>
         </Scenario-2>
       </Verify>
@@ -352,7 +349,7 @@
       </Purpose>
 
       <Interface>
-        <Entrypoint>~/.local/bin/zenmoney-transfer</Entrypoint>
+        <Entrypoint>python3 scripts/zenmoney_transfer.py</Entrypoint>
         <Schedule>manual</Schedule>
         <Args>
           Required:
@@ -426,11 +423,11 @@
 
       <Verify>
         <Scenario-1>
-          <Command>unset ZENMONEY_API_KEY; ~/.local/bin/zenmoney-transfer --from X --to Y --amount 1</Command>
+          <Command>unset ZENMONEY_API_KEY; python3 scripts/zenmoney_transfer.py --from X --to Y --amount 1</Command>
           <Expected>ERROR — missing ZENMONEY_API_KEY; exit code 2</Expected>
         </Scenario-1>
         <Scenario-2>
-          <Command>ZENMONEY_API_KEY=*** ~/.local/bin/zenmoney-transfer --from NON_EXISTENT --to Vietcombank --amount 1</Command>
+          <Command>ZENMONEY_API_KEY=*** python3 scripts/zenmoney_transfer.py --from NON_EXISTENT --to Vietcombank --amount 1</Command>
           <Expected>ERROR — from account not found; exit code 2</Expected>
         </Scenario-2>
       </Verify>
