@@ -12,7 +12,7 @@
 export ZENMONEY_API_KEY='...'
 ```
 
-2) Команды установлены как тонкие обёртки в `~/.local/bin` и вызывают Python-скрипты из проекта.
+2) Запуск: используйте команды проекта (см. ниже).
 
 ## Команды
 
@@ -80,7 +80,6 @@ zenmoney-transfer --from "Axis Bank" --to "IDFC" --amount 100 --comment "Transfe
 
 - Спека (Scriptcraft): `docs/script-specs.xml`
 - Скрипты: `scripts/*.py`
-- Обёртки-команды: `~/.local/bin/zenmoney-*`
 
 ## API
 

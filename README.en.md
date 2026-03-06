@@ -12,7 +12,7 @@ Small CLI scripts for ZenMoney API (Diff endpoint).
 export ZENMONEY_API_KEY='...'
 ```
 
-2) Commands are installed as thin wrappers in `~/.local/bin` and call the project scripts.
+2) Run: use the project commands below.
 
 ## Commands
 
@@ -80,7 +80,6 @@ Notes:
 
 - Spec (Scriptcraft): `docs/script-specs.xml`
 - Scripts: `scripts/*.py`
-- Wrappers: `~/.local/bin/zenmoney-*`
 
 ## API
 
